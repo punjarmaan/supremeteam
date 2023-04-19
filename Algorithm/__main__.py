@@ -38,7 +38,7 @@ def main():
 
     # Get all completed classes from user
     major_classes = getMajorClasses(major)
-    print("Out of the following classes which have you taken? Enter the course ID's as you see them one at a time. Enter 'Done' when you have listed all completed courses.")
+    print("Out of the following classes which have you taken or have credit for? Enter the course ID's as you see them one at a time. Enter 'Done' when you have listed all completed courses.")
     for x in major_classes:
         print(x)
     user_input = input()
@@ -49,7 +49,7 @@ def main():
     lang = int(input("How many more semesters of language do you need to take to satisfy the gen ed requirement (3 semesters max)?"))
     
     # Create Scheduler
-    schedule = Schedule(completed_classes, semesters_remaining, major, gen_eds, lang)
+    schedule = Schedule(completed_classes, semesters_remaining, major, major_classes gen_eds, lang)
     print("You are" + (" a " if schedule.first_year else " not a ") + "first year.")
     if(schedule.first_year):
         fy_gen_eds = []
