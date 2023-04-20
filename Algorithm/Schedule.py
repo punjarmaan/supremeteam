@@ -1,6 +1,5 @@
 import pandas as pd
 from Class import Class
-from ref import reference
 
 prereq_df = pd.read_csv('./WebScraper/output2.csv', header=None)
 prereq_df.index = prereq_df.loc[:,0].to_numpy() # Set Row Labels
@@ -26,7 +25,6 @@ class Schedule:
 
     def updateMajorReqs(self, major_reqs):
         """Construct all classes to have all prereqs and coreqs."""
-        major_reqs = major_reqs[:major_reqs.index(reference.get(self.major)[0])].append(major_reqs[major_reqs.index(reference.get(self.major)[0]):major_reqs.index(reference.get(self.major)[1]+1)].append(reference.get(self.major)[2]))
         for req in self.completed_classes: # Remove all completed classes from Major Requirements Left
             if(req in major_reqs):
                 major_reqs.remove(req)
