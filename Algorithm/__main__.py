@@ -1,6 +1,7 @@
 #from Schedule import Schedule
 import pandas as pd
 import numpy as np
+import csv
 from Schedule import Schedule
 
 major_df = pd.read_csv('./WebScraper/major_updated.csv', header=None)
@@ -16,7 +17,10 @@ def getMajorClasses(major: str):
         else:
             c+=1
     major_classes = major_classes[0:c]
-    return major_classes
+    final_classes = []
+    for string in major_classes:
+        final_classes.append(string.replace(u'\xa0',u' '))
+    return final_classes
 
 def valid(major: str) -> bool:
     try:
@@ -24,6 +28,7 @@ def valid(major: str) -> bool:
         return True
     except:
         return False
+
 def main():
     # Initialize variables for creating Schedule object
     semesters_remaining = int(input("How many semesters do you have remaining?\n"))
@@ -45,23 +50,22 @@ def main():
     while user_input != 'Done':
         completed_classes.append(user_input)
         user_input = input()
-    lang = int(input("How many more semesters of language do you need to take to satisfy the gen ed requirement (3 semesters max)?"))
+    lang = int(input("How many more semesters of language do you need to take to satisfy the gen ed requirement (3 semesters max)?\n"))
     
     # Create Scheduler
     schedule = Schedule(completed_classes, semesters_remaining, major, major_classes, gen_eds, lang)
     print("You are" + (" a " if schedule.first_year else " not a ") + "first year.")
     if(schedule.first_year):
         fy_gen_eds = []
-        fy_gen_eds.append(int(input("Do you still need to take ENGL 105? 1 - Yes or 0 - No")))
-        fy_gen_eds.append(int(input("Do you still need to take a First Year Seminar? 1 - Yes or 0 - No")))
-        fy_gen_eds.append(int(input("Do you still need to take Data Literacy Lab? 1 - Yes or 0 - No")))
-        fy_gen_eds.append(int(input("Do you still need to take College Thriving? 1 - Yes or 0 - No")))
+        fy_gen_eds.append(int(input("Do you still need to take ENGL 105? 1 - Yes or 0 - No\n")))
+        fy_gen_eds.append(int(input("Do you still need to take a First Year Seminar? 1 - Yes or 0 - No\n")))
+        fy_gen_eds.append(int(input("Do you still need to take Data Literacy Lab? 1 - Yes or 0 - No\n")))
+        fy_gen_eds.append(int(input("Do you still need to take College Thriving? 1 - Yes or 0 - No\n")))
         schedule.fy_gen_eds = fy_gen_eds
-    # schedule.constructSchedule()
-
-    print("Here is your schedule: ")
-    # print(schedule)
+    schedule.constructSchedule()
     
+    print("\n\nHere is your schedule: ")
+    print(schedule)
 
 
 

@@ -1,12 +1,13 @@
 import pandas as pd
 from Class import Class
+import numpy as np
 
-prereq_df = pd.read_csv('./WebScraper/output2.csv', header=None)
+prereq_df = pd.read_csv('./WebScraper/prereqs.csv', header=None)
 prereq_df.index = prereq_df.loc[:,0].to_numpy() # Set Row Labels
 prereq_df.drop(0, inplace=True, axis=1) # Drop First Column
 
 
-coreq_df = pd.read_csv('./WebScraper/output3.csv', header=None)
+coreq_df = pd.read_csv('./WebScraper/coreqs.csv', header=None)
 coreq_df.index = coreq_df.loc[:,0].to_numpy() # Set Row Labels
 coreq_df.drop(0, inplace=True, axis=1) # Drop First Column
 
@@ -15,7 +16,7 @@ class Schedule:
     def __init__(self, completed_classes, sem_rem: int, major: str, major_reqs, gen_eds: int, lang: int):
         self.completed_classes = completed_classes # Array of Completed Classes
         self.sem_rem = sem_rem # Semesters Remaining
-        self.semesters = [[]] # Semesters to be created
+        self.semesters = [] # Semesters to be created
         self.major = major # Name of Major
         self.major_reqs = self.updateMajorReqs(major_reqs) # Array of Classes
         self.gen_eds = gen_eds # Gen Eds Remaining
@@ -34,7 +35,6 @@ class Schedule:
             coreq = self.hasCoreq(req)
             prereqs = self.getPrereqs(req)
             new_m_reqs.append(Class(req, 3, coreq, prereqs))
-        
         return new_m_reqs
 
     def hasCoreq(self, class_name):
@@ -47,7 +47,7 @@ class Schedule:
 
     def getPrereqs(self, class_name):
         """Get a list of prerequisites for a class."""
-        prereqs
+        prereqs = None
         try: 
             prereqs = prereq_df.loc[class_name].to_numpy()
         except: # If class has no prereqs
@@ -59,11 +59,14 @@ class Schedule:
             else:
                 c+=1
         prereqs = prereqs[0:c]
-        return prereqs
+        final_classes = []
+        for string in prereqs:
+            final_classes.append(string.replace(u'\xa0',u' '))
+        return final_classes
 
     def getCoreq(self, class_name):
         """Get a list of coreqs for a"""
-        coreqs
+        coreqs = None
         try:
             coreqs = coreq_df.loc[class_name.ID].to_numpy() # Get the corequisites
         except:
@@ -96,6 +99,9 @@ class Schedule:
         coreq = None
         for x in range(len(cla.prerequisites)):
             pre = cla.prerequisites[x]
+            #print(pre)
+            #print(self.completed_classes)
+            #print(pre in self.completed_classes)
             if('or' in pre): # If there are multiple equivalent classes
                 start = 0
                 e_classes = [] # Array of equivalent classes
@@ -160,41 +166,87 @@ class Schedule:
         for x in classes:
             total_credit_hours+=x.credit_hours
 
+        if total_credit_hours < 3 and self.gen_eds > 0:
+            classes.append(Class('GEN ED', 3, False))
+            total_credit_hours+=3
+            self.gen_eds -=1
+        
+        if total_credit_hours <=6 and self.gen_eds > 0:
+            classes.append(Class('GEN ED', 3, False))
+            total_credit_hours+=3
+            self.gen_eds -= 1
+
+        coreqs = []
         for req in self.major_reqs: # Each Class left in Major Requirements
             if total_credit_hours >= 15:
                 break
-            can_take_req = True
-            # TODO Handle array of potential options like "pick two sciences" etc. in this case req will be an array
-            if type(req) == type([]): # Not a Class type aka is an array/list type
-                pass
-            else: # Is a Class type
-                
-                can_take_req, required_coreq = self.allPrereqsMet(req) # Determine if all prereqs are met and what a required coreq is if there is one
-
-                if can_take_req:
-                    if required_coreq != None:
-                        classes.append(Class(required_coreq, 3, self.hasCoreq(required_coreq)))
-                        if "/" in required_coreq:
-                            self.completed_classes.append(required_coreq[:required_coreq.find('/')])
-                            self.completed_classes.append(required_coreq[required_coreq.find('/')+1:])
-                        else:
-                            self.completed_classes.append(required_coreq)
-                        total_credit_hours+=3
+            if "ELECTIVE" in req.ID:
+                if "ELECTIVE" not in self.major_reqs[0].ID:
+                    classes.append(Class('Minor/Other Major Class/Other Gen Eds(if applicable)', 3, False))
+                    total_credit_hours+=3
+                else:
                     classes.append(req)
-                    self.completed_classes.append(req.ID)
-                    total_credit_hours+=req.credit_hours
+                    total_credit_hours+=3
+            else:
+                can_take_req = True
+                # TODO Handle array of potential options like "pick two sciences" etc. in this case req will be an array
+                if type(req) == type([]): # Not a Class type aka is an array/list type
+                    pass
+                else: # Is a Class type
+                    
+                    can_take_req, required_coreq = self.allPrereqsMet(req) # Determine if all prereqs are met and what a required coreq is if there is one
+                    #print("Class:" + req.ID + " Can Take: " + str(can_take_req))
+                    #print('\n')
+                    if can_take_req:
+                        if required_coreq != None:
+                            classes.append(Class(required_coreq, 3, self.hasCoreq(required_coreq)))
+                            """if "/" in required_coreq:
+                                self.completed_classes.append(required_coreq[:required_coreq.find('/')])
+                                self.completed_classes.append(required_coreq[required_coreq.find('/')+1:])
+                            else:
+                                self.completed_classes.append(required_coreq)"""
+                            coreqs.append(required_coreq)
+                            total_credit_hours+=3
+                        classes.append(req)
+                        total_credit_hours+=req.credit_hours
 
-                for x in range(len(self.major_reqs)): # Go through all classes for this semester
-                    if self.major_reqs[x].ID in self.completed_classes: # If class ID is found in completed classes then consider it complete and remove from major_reqs
-                        self.major_reqs.pop(x)
-                        x-=1
+        for x in classes:
+            self.completed_classes.append(x.ID)
 
+        remove_arr = []
+
+        for x in range(len(self.major_reqs)): # Go through all classes for this semester
+            if x >= len(self.major_reqs):
+                break
+            if self.major_reqs[x].ID in self.completed_classes: # If class ID is found in completed classes then consider it complete and remove from major_reqs
+                if(self.completed_classes.count(self.major_reqs[x].ID) > remove_arr.count(self.major_reqs[x].ID)):
+                    remove_arr.append(self.major_reqs[x].ID)
+        
+        for x in remove_arr:
+            for y in self.major_reqs:
+                if y.ID == x:
+                    self.major_reqs.remove(y)
+                    break
+        
+        while(total_credit_hours < 15):
+            classes.append(Class('Free Space', 3, False))
+            total_credit_hours += 3
         self.sem_rem -= 1 # Reduce Semester count
         return classes # Return this semesters classes
           
 
 
     def __str__(self) -> str:
-        return "hi"
+        output = ""
+        years = ['Freshman Fall', 'Freshman Spring', 'Sophomore Fall', 'Sophomore Spring', 'Junior Fall', 'Junior Spring', 'Senior Fall', 'Senior Spring']
+        years = years[8-len(self.semesters):]
+        c = 0
+        for sem in self.semesters:
+            output+=years[c]+"\n"
+            c+=1
+            for cla in sem:
+                output+=cla.ID+"\n"
+            output+="\n"
+        return output
 
     
