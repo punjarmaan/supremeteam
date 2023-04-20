@@ -1,9 +1,15 @@
 import pandas as pd
 from Class import Class
+from ref import reference
 
 prereq_df = pd.read_csv('./WebScraper/output2.csv', header=None)
 prereq_df.index = prereq_df.loc[:,0].to_numpy() # Set Row Labels
 prereq_df.drop(0, inplace=True, axis=1) # Drop First Column
+
+
+coreq_df = pd.read_csv('./WebScraper/output3.csv', header=None)
+coreq_df.index = coreq_df.loc[:,0].to_numpy() # Set Row Labels
+coreq_df.drop(0, inplace=True, axis=1) # Drop First Column
 
 class Schedule:
 
@@ -20,13 +26,14 @@ class Schedule:
 
     def updateMajorReqs(self, major_reqs):
         """Construct all classes to have all prereqs and coreqs."""
+        major_reqs = major_reqs[:major_reqs.index(reference.get(self.major)[0])].append(major_reqs[major_reqs.index(reference.get(self.major)[0]):major_reqs.index(reference.get(self.major)[1]+1)].append(reference.get(self.major)[2]))
         for req in self.completed_classes: # Remove all completed classes from Major Requirements Left
             if(req in major_reqs):
                 major_reqs.remove(req)
         
         new_m_reqs = []
         for req in major_reqs:
-            coreq = self.hasCoreq(req) # TODO # Determine if class has coreqs
+            coreq = self.hasCoreq(req)
             prereqs = self.getPrereqs(req)
             new_m_reqs.append(Class(req, 3, coreq, prereqs))
         
@@ -34,10 +41,15 @@ class Schedule:
 
     def hasCoreq(self, class_name):
         """Determine if a class has a corequisite based on class id."""
-        pass
+        try:
+            coreq = coreq_df.loc[class_name].to_numpy()
+        except:
+            coreq = []
+        return len(coreq) > 0
 
     def getPrereqs(self, class_name):
         """Get a list of prerequisites for a class."""
+        prereqs
         try: 
             prereqs = prereq_df.loc[class_name].to_numpy()
         except: # If class has no prereqs
@@ -51,12 +63,70 @@ class Schedule:
         prereqs = prereqs[0:c]
         return prereqs
 
+    def getCoreq(self, class_name):
+        """Get a list of coreqs for a"""
+        coreqs
+        try:
+            coreqs = coreq_df.loc[class_name.ID].to_numpy() # Get the corequisites
+        except:
+            return ""
+        
+        
     def checkFirstYear(self):
         return self.sem_rem >= 7
     
     def constructSchedule(self):
         for x in range(self.sem_rem):
             self.semesters.append(self.nextSemester())
+
+    def isACoreq(self, cla: Class, co: str) -> bool:
+        """Checks if co is a coreq of cla."""
+        coreqs = []
+        if not cla.corequisite: # Check if cla even has any coreqs
+            return False
+        
+        coreqs = coreq_df.loc[cla.ID].to_numpy() # Get Corequisites
+
+        for coreq in coreqs:
+            if co in coreq: # If the co passed in is in one of the coreq strings then it is a coreq
+                return True
+        
+        return False
+
+    def allPrereqsMet(self, cla: Class) -> tuple:
+        required_coreq = False
+        coreq = None
+        for x in range(len(cla.prerequisites)):
+            pre = cla.prerequisites[x]
+            if('or' in pre): # If there are multiple equivalent classes
+                start = 0
+                e_classes = [] # Array of equivalent classes
+                while(pre.find('or', start) >= 0):
+                    temp = pre.find('or', start)
+                    e_classes.append(pre[start:temp].strip())
+                    start = temp+2
+                e_classes.append(pre[start:].strip()) # classes is now an array of strings of the ids of equivalent classes
+                has_one_equi_class = False
+
+                for e_cla in e_classes: # Go through all equivalent prerequisites and check if one of them is satisfied
+                    if e_cla in self.completed_classes:
+                        has_one_equi_class = True
+                    if self.isACoreq(cla, e_cla): # check if any of the equivalent classes are corequisites
+                        required_coreq = True
+                        coreq = e_cla
+
+                if not has_one_equi_class: # If prereq that isn't satisfied is also a coreq then it doesn't matter
+                    if not required_coreq: # If it's not a required coreq
+                        return (False, False)
+                    
+            else: # If a specific class is needed
+                if not (pre in self.completed_classes): # If the specific class has not been completed or taken then can't take this class
+                    if not self.isACoreq(cla, pre):
+                        return (False, False)
+                    else:
+                        required_coreq = True
+                        coreq = pre
+        return (True, coreq)
 
     def nextSemester(self):
         """
@@ -97,37 +167,29 @@ class Schedule:
                 break
             can_take_req = True
             # TODO Handle array of potential options like "pick two sciences" etc. in this case req will be an array
-            if type(pre) == type([]): # Not a Class type aka is an array/list type
+            if type(req) == type([]): # Not a Class type aka is an array/list type
                 pass
             else: # Is a Class type
-                for pre in req.prerequisites: # Each Prerequisite of the current class
-                    if('or' in pre): # If there are multiple equivalent classes
-                        start = 0
-                        e_classes = [] # Array of equivalent classes
-                        while(pre.find('or', start) >= 0):
-                            temp = pre.find('or', start)
-                            e_classes.append(pre[start:temp].strip())
-                            start = temp+2
-                        e_classes.append(pre[start:].strip()) # classes is now an array of strings of the ids of equivalent classes
-                        has_one_equi_class = False
-                        for cla in e_classes: # Go through all equivalent prerequisites and check if one of them is satisfied
-                            if cla in self.completed_classes:
-                                has_one_equi_class = True
-                        if not has_one_equi_class:
-                            can_take_req = False
-                            break
-                    else: # If a specific class is needed
-                        if not (pre in self.completed_classes): # If the specific class has not been completed or taken then can't take this class
-                            can_take_req = False
-                            break
+                
+                can_take_req, required_coreq = self.allPrereqsMet(req) # Determine if all prereqs are met and what a required coreq is if there is one
+
                 if can_take_req:
+                    if required_coreq != None:
+                        classes.append(Class(required_coreq, 3, self.hasCoreq(required_coreq)))
+                        if "/" in required_coreq:
+                            self.completed_classes.append(required_coreq[:required_coreq.find('/')])
+                            self.completed_classes.append(required_coreq[required_coreq.find('/')+1:])
+                        else:
+                            self.completed_classes.append(required_coreq)
+                        total_credit_hours+=3
                     classes.append(req)
                     self.completed_classes.append(req.ID)
                     total_credit_hours+=req.credit_hours
 
-                for cla in classes: # Go through all classes for this semester
-                    if cla.ID in self.completed_classes: # If class ID is found in completed classes then consider it complete and remove from major_reqs
-                        self.major_reqs.remove(cla)
+                for x in range(len(self.major_reqs)): # Go through all classes for this semester
+                    if self.major_reqs[x].ID in self.completed_classes: # If class ID is found in completed classes then consider it complete and remove from major_reqs
+                        self.major_reqs.pop(x)
+                        x-=1
 
         self.sem_rem -= 1 # Reduce Semester count
         return classes # Return this semesters classes

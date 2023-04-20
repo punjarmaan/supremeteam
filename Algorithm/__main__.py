@@ -1,6 +1,7 @@
 #from Schedule import Schedule
 import pandas as pd
 import numpy as np
+#from Schedule import Schedule
 
 major_df = pd.read_csv('./WebScraper/major.csv', header=None)
 major_df.index = major_df.loc[:,0].to_numpy() # Set Row Labels
@@ -25,6 +26,8 @@ def valid(major: str) -> bool:
     except:
         return False
 def main():
+    test = [0,1,2,3]
+    print(test[4:])
     """
     # Initialize variables for creating Schedule object
     semesters_remaining = int(input("How many semesters do you have remaining?\n"))
@@ -49,7 +52,7 @@ def main():
     lang = int(input("How many more semesters of language do you need to take to satisfy the gen ed requirement (3 semesters max)?"))
     
     # Create Scheduler
-    schedule = Schedule(completed_classes, semesters_remaining, major, major_classes gen_eds, lang)
+    schedule = Schedule(completed_classes, semesters_remaining, major, major_classes, gen_eds, lang)
     print("You are" + (" a " if schedule.first_year else " not a ") + "first year.")
     if(schedule.first_year):
         fy_gen_eds = []
@@ -61,11 +64,13 @@ def main():
     schedule.constructSchedule()
 
     print("Here is your schedule: ")
-    print(schedule)
+    # print(schedule)
     """
+    
 
 
 
 
 if __name__ == "__main__":
     main()
+    
